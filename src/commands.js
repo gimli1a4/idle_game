@@ -1,4 +1,4 @@
-import { GENERATORS, UPGRADE_EFFECTS, COLOR_SCHEMES } from "./constants.js";
+import { GENERATORS, UPGRADE_EFFECTS, COLOR_SCHEMES, MODULES } from "./constants.js";
 import { state, canAfford, deductCost, formatCost, getEffectiveStat, getUpgradeCost, addEvent, formatUptime } from "./state.js";
 
 // ── Command registry ──────────────────────────────────────────────────────────
@@ -60,22 +60,16 @@ export const COMMANDS = {
     usage: "resources [tier]",
     exec(args, print) {
       const ALL = {
-        raw:      { label: "RAW MATERIALS", keys: ["iron","nickel","silicon","carbon","ice"] },
-        refined:  { label: "REFINED",       keys: ["steel","alloy","refinedSilicon","fuel","circuits"] },
-        advanced: { label: "ADVANCED",      keys: ["droneCpu","sensorArray","nanotubes","fusionBattery","aiCore"] },
-        exotic:   { label: "EXOTIC",        keys: ["iridium","antimatterDust","alienAlloy","darkCrystal","neutronium"] },
+        raw:     { label: "RAW MATERIALS", keys: ["iron","nickel","silicon","carbon","ice"] },
+        refined: { label: "REFINED",       keys: ["steel","alloy","refinedSilicon","fuelCells","circuits","coolant"] },
       };
       const NAMES = {
         iron:"Iron Ore", nickel:"Nickel Ore", silicon:"Silicon", carbon:"Carbon", ice:"Ice",
         steel:"Steel", alloy:"Composite Alloy", refinedSilicon:"Refined Silicon",
-        fuel:"Fuel Cells", circuits:"Circuits",
-        droneCpu:"Drone CPU", sensorArray:"Sensor Array", nanotubes:"Nanotubes",
-        fusionBattery:"Fusion Battery", aiCore:"AI Core",
-        iridium:"Iridium", antimatterDust:"Antimatter Dust", alienAlloy:"Alien Alloy",
-        darkCrystal:"Dark Crystal", neutronium:"Neutronium Frag.",
+        fuelCells:"Fuel Cells", circuits:"Circuits", coolant:"Coolant",
       };
       const tiers = args[0] ? { [args[0]]: ALL[args[0]] } : ALL;
-      if (args[0] && !ALL[args[0]]) { print(`Unknown tier: ${args[0]}. Options: raw, refined, advanced, exotic`, "error"); return; }
+      if (args[0] && !ALL[args[0]]) { print(`Unknown tier: ${args[0]}. Options: raw, refined`, "error"); return; }
       let any = false;
       for (const [, { label, keys }] of Object.entries(tiers)) {
         const items = keys.filter(k => state.resources[k] > 0);
@@ -224,6 +218,100 @@ export const COMMANDS = {
     },
   },
 
+  modules: {
+    description: "List all ship modules with status and costs",
+    usage: "modules",
+    exec(_, print) {
+      print("SHIP SYSTEMS", "head");
+      for (const [key, modDef] of Object.entries(MODULES)) {
+        const mod     = state.modules[key];
+        const tierDef = mod.tier > 0 ? modDef.tiers[mod.tier - 1] : null;
+        const status  = mod.tier === 0
+          ? `LOCKED  unlock: ${formatCost(modDef.unlockCost)}`
+          : `T${mod.tier} ${tierDef.label}${mod.stalled ? "  ● STALLED" : ""}`;
+        print(`${modDef.name}  [${mod.tier > 0 ? `${mod.tier} active` : "locked"}]`, "success");
+        print(`  ${modDef.description}`);
+        print(`  ${status}`, mod.stalled ? "error" : "hint");
+        if (mod.tier > 0 && mod.tier < 3) {
+          const nextTier = modDef.tiers[mod.tier];
+          print(`  next tier: ${formatCost(nextTier.upgradeCost)}  → ${nextTier.cycleTime}s cycle, ${nextTier.outputQty}×/cycle`, "hint");
+        } else if (mod.tier === 3) {
+          print(`  fully optimised`, "hint");
+        }
+        print("", "blank");
+      }
+    },
+  },
+
+  unlock: {
+    description: "Bring a ship module online (one-time cost)",
+    usage: "unlock <module>",
+    exec(args, print) {
+      if (!args[0]) {
+        print("MODULE BLUEPRINTS", "head");
+        for (const [, modDef] of Object.entries(MODULES)) {
+          print(`  ${modDef.shortName}`, "success");
+          print(`    ${modDef.description}`);
+          print(`    Unlock cost: ${formatCost(modDef.unlockCost)}`, "hint");
+          print(`    Output: ${modDef.tiers[0].outputQty}×${modDef.output} every ${modDef.tiers[0].cycleTime}s  Inputs: ${formatCost(modDef.tiers[0].inputs)}`, "hint");
+        }
+        return;
+      }
+      const entry = Object.entries(MODULES).find(([, m]) => m.shortName === args[0]);
+      if (!entry) { print(`Unknown module: "${args[0]}"`, "error"); return; }
+      const [key, modDef] = entry;
+      if (state.modules[key].tier > 0) { print(`${modDef.name} is already online.`, "error"); return; }
+      if (!canAfford(modDef.unlockCost)) {
+        const missing = Object.entries(modDef.unlockCost)
+          .filter(([r, a]) => (state.resources[r] ?? 0) < a)
+          .map(([r, a]) => `${a - Math.floor(state.resources[r] ?? 0)} more ${r}`)
+          .join(", ");
+        print(`Insufficient resources. Missing: ${missing}`, "error");
+        return;
+      }
+      deductCost(modDef.unlockCost);
+      state.modules[key].tier = 1;
+      state._dirty.modules = true;
+      addEvent(`${modDef.name} brought online`, "build");
+      print(`${modDef.name} is now online (T1).`, "success");
+      print(`  Cycle: ${modDef.tiers[0].cycleTime}s  Inputs: ${formatCost(modDef.tiers[0].inputs)}  Output: ${modDef.tiers[0].outputQty}×${modDef.output}`, "hint");
+    },
+  },
+
+  "tier-up": {
+    description: "Upgrade a ship module to the next tier",
+    usage: "tier-up <module>",
+    exec(args, print) {
+      if (!args[0]) { print("Usage: tier-up <module>", "hint"); return; }
+      const entry = Object.entries(MODULES).find(([, m]) => m.shortName === args[0]);
+      if (!entry) { print(`Unknown module: "${args[0]}"`, "error"); return; }
+      const [key, modDef] = entry;
+      const mod = state.modules[key];
+      if (mod.tier === 0) { print(`${modDef.name} is not yet online. Use 'unlock' first.`, "error"); return; }
+      if (mod.tier >= 3)  { print(`${modDef.name} is already fully optimised (T3).`, "error"); return; }
+      const cost = modDef.tiers[mod.tier - 1].upgradeCost;
+      if (!canAfford(cost)) {
+        const missing = Object.entries(cost)
+          .filter(([r, a]) => (state.resources[r] ?? 0) < a)
+          .map(([r, a]) => `${a - Math.floor(state.resources[r] ?? 0)} more ${r}`)
+          .join(", ");
+        print(`Insufficient resources. Missing: ${missing}`, "error");
+        return;
+      }
+      deductCost(cost);
+      mod.tier++;
+      // Reset cycle so new tier starts fresh
+      mod.running = false;
+      mod.stalled = false;
+      mod.timer   = 0;
+      state._dirty.modules = true;
+      const newTier = modDef.tiers[mod.tier - 1];
+      addEvent(`${modDef.name} upgraded to T${mod.tier} ${newTier.label}`, "upgrade");
+      print(`${modDef.name} → T${mod.tier} ${newTier.label}`, "success");
+      print(`  Cycle: ${newTier.cycleTime}s  Output: ${newTier.outputQty}×${modDef.output}  Inputs: ${formatCost(newTier.inputs)}`, "hint");
+    },
+  },
+
 };
 
 // ── Tab completion ────────────────────────────────────────────────────────────
@@ -233,7 +321,6 @@ export function getCompletions(input) {
   const parts = raw.split(/\s+/);
 
   if (parts.length <= 1) {
-    // Complete the command name
     return Object.keys(COMMANDS).filter(c => c.startsWith(parts[0] ?? ""));
   }
 
@@ -244,6 +331,9 @@ export function getCompletions(input) {
     if (cmd === "build" || cmd === "upgrade") {
       return Object.values(GENERATORS).map(g => g.shortName).filter(s => s.startsWith(partial));
     }
+    if (cmd === "unlock" || cmd === "tier-up") {
+      return Object.values(MODULES).map(m => m.shortName).filter(s => s.startsWith(partial));
+    }
     if (cmd === "color") {
       return Object.keys(COLOR_SCHEMES).filter(s => s.startsWith(partial));
     }
@@ -251,7 +341,7 @@ export function getCompletions(input) {
       return Object.keys(COMMANDS).filter(c => c.startsWith(partial));
     }
     if (cmd === "resources") {
-      return ["raw","refined","advanced","exotic"].filter(s => s.startsWith(partial));
+      return ["raw","refined"].filter(s => s.startsWith(partial));
     }
   }
 

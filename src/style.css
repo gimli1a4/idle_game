@@ -28,7 +28,7 @@ body {
 
 #tui-root {
   display: grid;
-  grid-template-rows: auto minmax(160px, 35vh) auto 1fr auto;
+  grid-template-rows: auto minmax(140px, 28vh) minmax(52px, 14vh) auto 1fr auto;
   width: 100vw;
   height: 100vh;
   border: 1px solid var(--dim);
@@ -147,6 +147,43 @@ body {
 .evt-build   { color: var(--secondary); }
 .evt-upgrade { color: var(--secondary); }
 .evt-system  { color: var(--dim); font-style: italic; }
+
+/* ── Ship systems / modules panel ───────────────────────────────────────── */
+
+#tui-modules {
+  border-top: 1px solid var(--dim);
+  border-bottom: 1px solid var(--dim);
+  padding: 4px 10px 6px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+#tui-modules::-webkit-scrollbar { width: 4px; }
+#tui-modules::-webkit-scrollbar-track { background: var(--bg); }
+#tui-modules::-webkit-scrollbar-thumb { background: var(--dim); }
+
+#modules-content { display: flex; flex-direction: column; gap: 1px; }
+
+.mod-hint   { color: var(--dim); font-size: 11px; padding-left: 4px; }
+
+.mod-row {
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.6;
+}
+
+.mod-name   { color: var(--secondary); }
+.mod-tier   { color: var(--dim); }
+.mod-bar    { color: var(--primary); letter-spacing: -0.5px; }
+.mod-timer  { color: var(--text); min-width: 8ch; display: inline-block; }
+.mod-output { color: var(--primary); }
+.mod-inputs { color: var(--dim); }
+
+.mod-stalled .mod-bar   { color: #ff5555; }
+.mod-stalled .mod-timer { color: #ff5555; }
 
 /* ── Drone status bar ────────────────────────────────────────────────────── */
 

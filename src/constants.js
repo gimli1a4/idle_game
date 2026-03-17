@@ -228,7 +228,7 @@ export const UPGRADE_BASE_COST = {
   success: { iron: 20, nickel: 10 },
   crit:    { iron: 15, nickel: 8, silicon: 5 },
   yield:   { steel: 5, nickel: 15 },
-  cycle:   { circuits: 2, fuel: 3, steel: 8 },
+  cycle:   { circuits: 2, fuelCells: 3, steel: 8 },
 };
 
 export const UPGRADE_EFFECTS = {
@@ -289,4 +289,92 @@ export const COLOR_SCHEMES = {
     "--bg":        "#000510",
     "--text":      "#aaccff",
   },
+};
+
+// ── Ship Modules ──────────────────────────────────────────────────────────────
+//
+// Fixed onboard infrastructure. Each module runs a deterministic conversion
+// cycle: consumes raw inputs → produces one refined resource. No RNG.
+// Tiers 1-3 (Online → Overclocked → Optimised). Tier 0 = locked.
+
+export const MODULES = {
+
+  steelFoundry: {
+    name:        "Steel Foundry",
+    shortName:   "steel-foundry",
+    description: "Reactivated arc-furnace on deck 4. Smelts iron and nickel into structural steel.",
+    output:      "steel",
+    unlockCost:  { iron: 40, nickel: 20 },
+    tiers: [
+      { tier: 1, label: "Online",      cycleTime: 30, inputs: { iron: 4, nickel: 2 },              outputQty: 1, upgradeCost: { iron: 60, nickel: 30, steel: 5 } },
+      { tier: 2, label: "Overclocked", cycleTime: 20, inputs: { iron: 4, nickel: 2 },              outputQty: 2, upgradeCost: { steel: 20, circuits: 4, coolant: 8 } },
+      { tier: 3, label: "Optimised",   cycleTime: 12, inputs: { iron: 4, nickel: 2, coolant: 1 }, outputQty: 3, upgradeCost: null },
+    ],
+  },
+
+  carbonForge: {
+    name:        "Carbon Forge",
+    shortName:   "carbon-forge",
+    description: "Infuses iron with carbon at high pressure, producing composite alloy.",
+    output:      "alloy",
+    unlockCost:  { iron: 30, carbon: 30 },
+    tiers: [
+      { tier: 1, label: "Online",      cycleTime: 35, inputs: { iron: 3, carbon: 3 },              outputQty: 1, upgradeCost: { iron: 50, carbon: 50, alloy: 5 } },
+      { tier: 2, label: "Overclocked", cycleTime: 22, inputs: { iron: 3, carbon: 3 },              outputQty: 2, upgradeCost: { alloy: 20, circuits: 4, coolant: 8 } },
+      { tier: 3, label: "Optimised",   cycleTime: 14, inputs: { iron: 3, carbon: 3, coolant: 1 }, outputQty: 3, upgradeCost: null },
+    ],
+  },
+
+  purificationChamber: {
+    name:        "Purification Chamber",
+    shortName:   "purification-chamber",
+    description: "Zone-refining unit that sweeps impurities from raw silicon into wafer-grade stock.",
+    output:      "refinedSilicon",
+    unlockCost:  { iron: 20, nickel: 10, silicon: 30 },
+    tiers: [
+      { tier: 1, label: "Online",      cycleTime: 25, inputs: { silicon: 4 },              outputQty: 1, upgradeCost: { silicon: 60, steel: 10 } },
+      { tier: 2, label: "Overclocked", cycleTime: 16, inputs: { silicon: 4 },              outputQty: 2, upgradeCost: { refinedSilicon: 15, circuits: 4, coolant: 6 } },
+      { tier: 3, label: "Optimised",   cycleTime: 10, inputs: { silicon: 4, coolant: 1 }, outputQty: 3, upgradeCost: null },
+    ],
+  },
+
+  electrolysisPlant: {
+    name:        "Electrolysis Plant",
+    shortName:   "electrolysis-plant",
+    description: "Cracks ice into hydrogen, binds it to carbon electrodes to produce fuel cells.",
+    output:      "fuelCells",
+    unlockCost:  { iron: 25, nickel: 12, ice: 20 },
+    tiers: [
+      { tier: 1, label: "Online",      cycleTime: 40, inputs: { ice: 4, carbon: 2 },              outputQty: 1, upgradeCost: { steel: 12, fuelCells: 5 } },
+      { tier: 2, label: "Overclocked", cycleTime: 26, inputs: { ice: 4, carbon: 2 },              outputQty: 2, upgradeCost: { fuelCells: 20, circuits: 5, coolant: 10 } },
+      { tier: 3, label: "Optimised",   cycleTime: 16, inputs: { ice: 4, carbon: 2, coolant: 1 }, outputQty: 3, upgradeCost: null },
+    ],
+  },
+
+  fabricationBay: {
+    name:        "Fabrication Bay",
+    shortName:   "fabrication-bay",
+    description: "Deposits nickel traces onto refined silicon substrates. Required for tier 2+ drones.",
+    output:      "circuits",
+    unlockCost:  { steel: 15, refinedSilicon: 10 },
+    tiers: [
+      { tier: 1, label: "Online",      cycleTime: 45, inputs: { refinedSilicon: 2, nickel: 3 },              outputQty: 1, upgradeCost: { circuits: 8, steel: 15, alloy: 8 } },
+      { tier: 2, label: "Overclocked", cycleTime: 28, inputs: { refinedSilicon: 2, nickel: 3 },              outputQty: 2, upgradeCost: { circuits: 20, alloy: 15, coolant: 12 } },
+      { tier: 3, label: "Optimised",   cycleTime: 18, inputs: { refinedSilicon: 2, nickel: 3, coolant: 1 }, outputQty: 3, upgradeCost: null },
+    ],
+  },
+
+  cryoDistillery: {
+    name:        "Cryo Distillery",
+    shortName:   "cryo-distillery",
+    description: "Blends meltwater and silicon particulate into dielectric coolant fluid. Upgrade this first.",
+    output:      "coolant",
+    unlockCost:  { iron: 20, nickel: 10, ice: 20, silicon: 10 },
+    tiers: [
+      { tier: 1, label: "Online",      cycleTime: 30, inputs: { ice: 3, silicon: 2 }, outputQty: 1, upgradeCost: { steel: 10, coolant: 5 } },
+      { tier: 2, label: "Overclocked", cycleTime: 20, inputs: { ice: 3, silicon: 2 }, outputQty: 2, upgradeCost: { coolant: 20, circuits: 6, alloy: 10 } },
+      { tier: 3, label: "Optimised",   cycleTime: 12, inputs: { ice: 3, silicon: 2 }, outputQty: 3, upgradeCost: null },
+    ],
+  },
+
 };

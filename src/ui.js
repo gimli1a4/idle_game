@@ -1,4 +1,4 @@
-import { GENERATORS, COLOR_SCHEMES } from "./constants.js";
+import { GENERATORS, COLOR_SCHEMES, MODULES } from "./constants.js";
 import { state, getEffectiveStat, formatUptime } from "./state.js";
 import { COMMANDS, getCompletions } from "./commands.js";
 
@@ -12,6 +12,7 @@ export function initUI() {
   el.header      = document.getElementById("header-uptime");
   el.resources   = document.getElementById("resources-content");
   el.eventlog    = document.getElementById("eventlog-content");
+  el.modules     = document.getElementById("modules-content");
   el.dronebar    = document.getElementById("dronebar-content");
   el.output      = document.getElementById("tui-output");
   el.inputDisplay= document.getElementById("input-display");
@@ -209,18 +210,12 @@ function appendLine(text, type = "text") {
 const RESOURCE_LABELS = {
   iron:"Iron Ore", nickel:"Nickel Ore", silicon:"Silicon", carbon:"Carbon", ice:"Ice",
   steel:"Steel", alloy:"Composite Alloy", refinedSilicon:"Ref. Silicon",
-  fuel:"Fuel Cells", circuits:"Circuits",
-  droneCpu:"Drone CPU", sensorArray:"Sensor Array", nanotubes:"Nanotubes",
-  fusionBattery:"Fusion Battery", aiCore:"AI Core",
-  iridium:"Iridium", antimatterDust:"Antimatter Dust", alienAlloy:"Alien Alloy",
-  darkCrystal:"Dark Crystal", neutronium:"Neutronium Frag.",
+  fuelCells:"Fuel Cells", circuits:"Circuits", coolant:"Coolant",
 };
 
 const RESOURCE_TIERS = [
-  { label: "RAW",      keys: ["iron","nickel","silicon","carbon","ice"] },
-  { label: "REFINED",  keys: ["steel","alloy","refinedSilicon","fuel","circuits"] },
-  { label: "ADVANCED", keys: ["droneCpu","sensorArray","nanotubes","fusionBattery","aiCore"] },
-  { label: "EXOTIC",   keys: ["iridium","antimatterDust","alienAlloy","darkCrystal","neutronium"] },
+  { label: "RAW",     keys: ["iron","nickel","silicon","carbon","ice"] },
+  { label: "REFINED", keys: ["steel","alloy","refinedSilicon","fuelCells","circuits","coolant"] },
 ];
 
 function renderResources() {
@@ -315,6 +310,73 @@ function renderDroneBar() {
   }
 }
 
+// ── Modules panel ─────────────────────────────────────────────────────────────
+
+const RES_ABBREV = {
+  iron:"Fe", nickel:"Ni", silicon:"Si", carbon:"C", ice:"H₂O",
+  steel:"St", alloy:"Al", refinedSilicon:"rSi", fuelCells:"FC", circuits:"Ci", coolant:"Co",
+};
+
+function fmtInputs(inputs) {
+  return Object.entries(inputs).map(([r, a]) => `${RES_ABBREV[r] ?? r}:${a}`).join(" ");
+}
+
+function renderModules() {
+  const active = Object.entries(MODULES).filter(([k]) => state.modules[k].tier > 0);
+
+  if (!active.length) {
+    el.modules.innerHTML = "";
+    const hint = document.createElement("div");
+    hint.className   = "mod-hint";
+    hint.textContent = "No modules online — run 'modules' to see blueprints, 'unlock <module>' to activate";
+    el.modules.appendChild(hint);
+    return;
+  }
+
+  el.modules.innerHTML = "";
+  for (const [key, modDef] of active) {
+    const mod     = state.modules[key];
+    const tierDef = modDef.tiers[mod.tier - 1];
+    const bars    = 12;
+    const filled  = mod.running ? Math.round(((tierDef.cycleTime - mod.timer) / tierDef.cycleTime) * bars) : 0;
+    const bar     = (mod.stalled ? "!" : "█").repeat(filled) + "░".repeat(bars - filled);
+
+    const row = document.createElement("div");
+    row.className = `mod-row${mod.stalled ? " mod-stalled" : ""}`;
+
+    // Name + tier
+    const name = document.createElement("span");
+    name.className   = "mod-name";
+    name.textContent = modDef.shortName;
+
+    const tier = document.createElement("span");
+    tier.className   = "mod-tier";
+    tier.textContent = ` T${mod.tier}`;
+
+    // Progress bar + timer
+    const progress = document.createElement("span");
+    progress.className   = "mod-bar";
+    progress.textContent = ` [${bar}] `;
+
+    const timer = document.createElement("span");
+    timer.className   = "mod-timer";
+    timer.textContent = mod.stalled ? "STALLED" : `${mod.timer}s`;
+
+    // Arrow + output
+    const output = document.createElement("span");
+    output.className   = "mod-output";
+    output.textContent = `  →${tierDef.outputQty}×${modDef.output}`;
+
+    // Inputs
+    const inputs = document.createElement("span");
+    inputs.className   = "mod-inputs";
+    inputs.textContent = `  [${fmtInputs(tierDef.inputs)}]`;
+
+    row.append(name, tier, progress, timer, output, inputs);
+    el.modules.appendChild(row);
+  }
+}
+
 function renderHeader() {
   el.header.textContent = `UPTIME ${formatUptime()}  TICK #${state.tick}`;
 }
@@ -323,10 +385,12 @@ function renderHeader() {
 
 export function render() {
   renderHeader();
-  renderDroneBar();            // always (countdown changes every second)
+  renderDroneBar();
+  renderModules();
   if (state._dirty.resources) { renderResources(); state._dirty.resources = false; }
   if (state._dirty.events)    { renderEventLog();  state._dirty.events    = false; }
-  state._dirty.drones = false;
+  state._dirty.drones  = false;
+  state._dirty.modules = false;
 }
 
 export function renderAll() {
@@ -334,9 +398,11 @@ export function renderAll() {
   renderResources();
   renderEventLog();
   renderDroneBar();
+  renderModules();
   state._dirty.resources = false;
   state._dirty.events    = false;
   state._dirty.drones    = false;
+  state._dirty.modules   = false;
 }
 
 // ── Boot sequence ─────────────────────────────────────────────────────────────

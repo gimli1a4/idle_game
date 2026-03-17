@@ -1,13 +1,11 @@
-import { GENERATORS, UPGRADE_EFFECTS, UPGRADE_BASE_COST } from "./constants.js";
+import { GENERATORS, UPGRADE_EFFECTS, UPGRADE_BASE_COST, MODULES } from "./constants.js";
 
 // ── Initial state factories ───────────────────────────────────────────────────
 
 function makeResources() {
   return {
     iron: 0, nickel: 0, silicon: 0, carbon: 0, ice: 0,
-    steel: 0, alloy: 0, refinedSilicon: 0, fuel: 0, circuits: 0,
-    droneCpu: 0, sensorArray: 0, nanotubes: 0, fusionBattery: 0, aiCore: 0,
-    iridium: 0, antimatterDust: 0, alienAlloy: 0, darkCrystal: 0, neutronium: 0,
+    steel: 0, alloy: 0, refinedSilicon: 0, fuelCells: 0, circuits: 0, coolant: 0,
   };
 }
 
@@ -21,10 +19,20 @@ function makeUpgrades() {
   );
 }
 
-// Drone timers: seconds until next cycle fires. Initialized to the cycle length.
 function makeTimers() {
   return Object.fromEntries(
     Object.entries(GENERATORS).map(([k, g]) => [k, g.cycle])
+  );
+}
+
+function makeModules() {
+  return Object.fromEntries(
+    Object.keys(MODULES).map(k => [k, {
+      tier:    0,       // 0 = locked, 1–3 = active tier
+      running: false,
+      stalled: false,
+      timer:   0,       // seconds remaining in current cycle
+    }])
   );
 }
 
@@ -35,12 +43,12 @@ export const state = {
   drones:      makeDrones(),
   upgrades:    makeUpgrades(),
   timers:      makeTimers(),
-  eventLog:    [],          // { time, message, type }
+  modules:     makeModules(),
+  eventLog:    [],
   colorScheme: "green",
   tick:        0,
   startTime:   Date.now(),
-  // Dirty flags for selective re-rendering
-  _dirty: { resources: true, events: true, drones: true },
+  _dirty: { resources: true, events: true, drones: true, modules: true },
 };
 
 // Starter cache from the ship's emergency reserves
