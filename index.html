@@ -1,13 +1,39 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>idle_game</title>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AURORA-7 // Mining Operations</title>
+</head>
+<body>
+  <div id="tui-root">
+    <div id="tui-header">
+      <span id="header-title">AURORA-7 ▸ AUTONOMOUS MINING VESSEL ▸ EMERGENCY OPS TERMINAL v2.1</span>
+      <span id="header-uptime">--:--:--</span>
+    </div>
+    <div id="tui-main">
+      <div id="tui-resources">
+        <div class="panel-label">RESOURCES</div>
+        <div id="resources-content"></div>
+      </div>
+      <div id="tui-eventlog">
+        <div class="panel-label">EVENT LOG</div>
+        <div id="eventlog-content"></div>
+      </div>
+    </div>
+    <div id="tui-dronebar">
+      <span class="dronebar-label">DRONES ▸</span>
+      <span id="dronebar-content">No active drones — type 'build' to fabricate</span>
+    </div>
+    <div id="tui-output"></div>
+    <div id="tui-inputline">
+      <span class="prompt">aurora@AURORA-7:~$&nbsp;</span>
+      <span id="input-display"></span><span class="cursor">█</span>
+    </div>
+  </div>
+  <div id="tui-boot">
+    <pre id="boot-output"></pre><span class="cursor">█</span>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
 </html>
