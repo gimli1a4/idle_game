@@ -231,8 +231,6 @@ body {
 #input-display {
   color: var(--primary);
   white-space: pre;
-  flex: 1;
-  min-width: 0;
 }
 
 /* ── Cursor ──────────────────────────────────────────────────────────────── */

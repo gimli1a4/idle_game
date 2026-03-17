@@ -79,6 +79,7 @@ export function canAfford(costMap) {
 
 export function deductCost(costMap) {
   for (const [r, a] of Object.entries(costMap)) state.resources[r] -= a;
+  state._dirty.resources = true;
 }
 
 export function formatCost(costMap) {
